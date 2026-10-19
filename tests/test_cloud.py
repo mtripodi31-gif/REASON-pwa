@@ -37,6 +37,7 @@ def test_public_shell_and_only_public_config(setup):
     cfg=c.get('/api/config').json()
     assert cfg['firebase']['projectId']=='reason-512120'
     assert 'secret' not in str(cfg).lower()
+    assert c.get('/health').json()['execution_enabled'] is False
     assert c.get('/healthz').json()['execution_enabled'] is False
 
 def test_owner_google_only(setup):
