@@ -163,6 +163,7 @@ def create_app(settings=None,store=None,verify=None,broker=None):
     async def invalid(request,exc):return JSONResponse({'detail':[{'field':'.'.join(map(str,e['loc'])),'message':e['msg']} for e in exc.errors()]},422)
     @app.exception_handler(ValueError)
     async def bad(request,exc):return JSONResponse({'detail':str(exc)},422)
+    @app.get('/health')
     @app.get('/healthz')
     def health():return {'status':'ok','release':'cloud-foundation-0.2','execution_enabled':False}
     @app.get('/api/config')

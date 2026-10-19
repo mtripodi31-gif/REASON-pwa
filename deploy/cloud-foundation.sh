@@ -23,5 +23,8 @@ gcloud run deploy reason-api --project="$REASON_PROJECT" --region="$REASON_REGIO
   --env-vars-file=deploy/runtime.env.yaml --allow-unauthenticated --min-instances=0 --max-instances=2 --memory=512Mi --cpu=1 --timeout=60 --quiet
 REASON_URL="$(gcloud run services describe reason-api --project="$REASON_PROJECT" --region="$REASON_REGION" --format='value(status.url)')"
 python3 deploy/configure_firebase.py "$REASON_URL"
-curl --fail --silent --show-error "$REASON_URL/healthz"
+if ! curl --fail --silent --show-error "$REASON_URL/health"; then
+  printf '\nThe container deployed, but public HTTP access is not verified. Check Cloud Run IAM and ingress before continuing.\n' >&2
+  exit 1
+fi
 printf '\nOpen REASON: %s\nSign in using tripodi@directlinemedical.app. Broker connection is not configured yet.\n' "$REASON_URL"
