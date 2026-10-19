@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Optional next phase: read-only connection. Values never become shell arguments or files.
+# Configure the dedicated paper account. Secret values never become shell arguments or files.
 set -euo pipefail
 REASON_PROJECT='reason-512120'
 REASON_API="reason-api@$REASON_PROJECT.iam.gserviceaccount.com"
@@ -16,7 +16,17 @@ for REASON_SECRET in alpaca-paper-key alpaca-paper-secret; do
  done
 read -r -p 'Alpaca PAPER account ID: ' REASON_ACCOUNT
 if [[ ! "$REASON_ACCOUNT" =~ ^[a-fA-F0-9-]{36}$ ]]; then printf 'Expected a UUID account ID.\n' >&2; exit 1; fi
+# Persist the non-secret account binding so a later API deployment cannot clear it.
+REASON_RUNTIME='deploy/runtime.env.yaml'
+if [ -f "$REASON_RUNTIME" ]; then
+  if grep -q '^REASON_ACCOUNT_ID:' "$REASON_RUNTIME"; then
+    sed -i.bak "s/^REASON_ACCOUNT_ID:.*/REASON_ACCOUNT_ID: \"$REASON_ACCOUNT\"/" "$REASON_RUNTIME"
+  else
+    printf 'REASON_ACCOUNT_ID: "%s"\n' "$REASON_ACCOUNT" >> "$REASON_RUNTIME"
+  fi
+  rm -f "$REASON_RUNTIME.bak"
+fi
 gcloud run services update reason-api --project="$REASON_PROJECT" --region=us-central1 \
   --update-env-vars="REASON_ACCOUNT_ID=$REASON_ACCOUNT" \
   --update-secrets=ALPACA_PAPER_KEY=alpaca-paper-key:latest,ALPACA_PAPER_SECRET=alpaca-paper-secret:latest
-printf 'Read-only paper connection configured. No orders can be placed by this release.\n'
+printf 'Paper credentials and account binding configured. Orders require the separate paper worker.\n'
