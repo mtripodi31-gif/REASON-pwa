@@ -1,6 +1,8 @@
 # REASON PWA — build specification
 
-Version 1.0 • October 16, 2026 • Design and pricing research complete; application not yet implemented or deployed.
+Version 1.0 • October 16, 2026 • Original design baseline.
+
+Implementation note, October 19, 2026: cloud foundation 0.2 is deployed. Paper execution 0.3 is implemented in the repository and awaiting PR review/deployment. This specification remains the broader target; items such as streaming data, alerts, performance history and advanced recovery are not complete merely because the basic worker exists.
 
 ## Purpose and selected design
 

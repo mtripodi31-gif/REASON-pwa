@@ -15,6 +15,10 @@ class Store:
 class Broker:
     configured=True
     def snapshot(self):return dict(at=datetime.now(timezone.utc).isoformat(),account={'id':'paper-account','cash':'100000','equity':'100000'},positions=[],orders=[],revision='a'*64,changing_during_read=False)
+class Market:
+    settings=type('Settings',(),{'feed':'iex'})()
+    def snapshots(self,symbols):
+        return {s:{'latestTrade':{'p':100,'t':datetime.now(timezone.utc).isoformat()},'latestQuote':{'bp':99.9,'ap':100.1,'t':datetime.now(timezone.utc).isoformat()},'minuteBar':{'c':100},'dailyBar':{'c':100},'prevDailyBar':{'c':99}} for s in symbols}
 
 @pytest.fixture
 def setup():
@@ -37,8 +41,8 @@ def test_public_shell_and_only_public_config(setup):
     cfg=c.get('/api/config').json()
     assert cfg['firebase']['projectId']=='reason-512120'
     assert 'secret' not in str(cfg).lower()
-    assert c.get('/health').json()['execution_enabled'] is False
-    assert c.get('/healthz').json()['execution_enabled'] is False
+    assert c.get('/health').json()['paper_only'] is True
+    assert c.get('/healthz').json()['release']=='paper-execution-0.3'
 
 def test_owner_google_only(setup):
     c,_,_=setup
@@ -69,17 +73,33 @@ def test_packet_lists_missing_evidence(setup):
     c,_,_=setup;p=c.post('/api/packet',json={},headers=AUTH).json()
     assert not p['evidence'] and p['missing'] and p['schema']['properties']
 
-def test_draft_never_executes_and_duplicate_safe(setup):
+def test_evidenced_card_activates_for_paper_worker():
+    cfg=Settings('reason-512120','owner@example.com','key','app',alpaca_account='paper-account')
+    store=Store();app=create_app(cfg,store,lambda token:dict(uid='owner',email='owner@example.com',email_verified=True,firebase={'sign_in_provider':'google.com'}),Broker(),Market())
+    with TestClient(app) as client:
+        packet=client.post('/api/packet',json={},headers=AUTH).json();now=datetime.now(timezone.utc)
+        evidence=next(e['id'] for e in packet['evidence'] if e['symbol']=='TQQQ')
+        card=dict(schema_version='reason.trade-card.v1',card_id='evidenced',mode='paper',account_id='paper-account',
+            packet_id=packet['packet_id'],revision=packet['revision'],generated_at=now.isoformat(),
+            activate_before=(now+timedelta(minutes=5)).isoformat(),expires_at=(now+timedelta(hours=1)).isoformat(),
+            sessions=['regular'],assessment='Test paper activation.',concentration_reason='Ten percent test target.',
+            decisions=[dict(symbol='TQQQ',target_weight=.1,entry={'kind':'immediate'},exits={'stop':90,'take':115},
+                evidence_ids=[evidence],advantage='Test.',contrary='Test.',invalidation='Stop.',horizon='One session')])
+        assert client.post('/api/cards',json=card,headers=AUTH).json()['status']=='active'
+        assert store.get('system','active_card')['card']['card_id']=='evidenced'
+
+def test_no_change_card_activates_without_orders_and_duplicate_safe(setup):
     c,_,_=setup;card=make_card(c)
-    assert c.post('/api/cards',json=card,headers=AUTH).json()['status']=='draft_not_active'
+    assert c.post('/api/cards',json=card,headers=AUTH).json()['status']=='active_no_change'
     assert c.post('/api/cards',json=card,headers=AUTH).json()['status']=='duplicate'
     card['assessment']='changed'
     assert c.post('/api/cards',json=card,headers=AUTH).status_code==409
 
-def test_no_ai_or_execution_endpoints(setup):
+def test_no_ai_and_owner_controls_are_durable(setup):
     c,_,_=setup
     assert c.post('/api/ai',json={},headers=AUTH).status_code==409
-    assert c.post('/api/control/resume',json={},headers=AUTH).status_code==409
+    assert c.post('/api/control/resume',json={},headers=AUTH).json()['status']=='resume'
+    assert c.get('/api/status',headers=AUTH).json()['control']['entries_paused'] is False
 
 def test_reject_unknown_packet_live_and_malformed_time(setup):
     c,_,_=setup

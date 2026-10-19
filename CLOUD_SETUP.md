@@ -1,91 +1,85 @@
-# REASON cloud foundation — release 0.2
+# REASON paper execution — release 0.3
 
 Project: `reason-512120` • Region: `us-central1` • Owner: `tripodi@directlinemedical.app`
 
 ## What this release does
 
-- Deployable owner-authenticated PWA shell and FastAPI API.
-- Backend verifies Google Firebase ID tokens with revocation checks, exact verified owner email, Google sign-in provider and optional owner UID pin.
-- Firestore stores account snapshots, packet exports, no-change card drafts and sanitized connection errors. Browser database access is denied by deployed Security Rules; the API uses its service account.
-- Optional Alpaca **paper-only, read-only** import of account, positions and open orders. Only three allowlisted GET endpoints exist. Account ID is checked, redirects are refused, and neither live broker endpoints nor order-write methods exist.
-- A packet export contains the versioned REASON mandate, schema, broker snapshot and missing evidence. No fictitious quotes or benchmark values are shown.
-- No paid AI calls, trading worker, automatic trading or scheduled market analysis. Cards are visibly drafts, never activated. Trade decisions are rejected in this release because there is no live evidence feed or execution worker. No-change drafts can be saved and deduplicated.
+- Keeps owner-only Google sign-in, server-only Firestore access and the dedicated Alpaca PAPER account binding.
+- Adds Alpaca IEX stock snapshots to exported market-call packets, labeled as a single-exchange feed. Missing news, social search, consolidated indicators and benchmark history remain explicit.
+- Validates and automatically activates complete `reason.trade-card.v1` cards. Cards are paper-only, regular-session, long-only, whole-share and cash-only. Long inverse/leveraged ETFs are supported. Existing shorts can be closed to zero but cannot be enlarged or flipped long in one card.
+- Runs one persistent e2-small Compute Engine worker independently of the phone. It uses a Firestore lease, 10-second loop, deterministic Alpaca client order IDs and durable order intents.
+- Submits new/increased long exposure as paper bracket limit orders with broker-resident stop and take-profit legs. A network timeout becomes `UNKNOWN`; the worker reconciles by client ID and pauses new entries instead of sending a fresh order.
+- Adds Pause entries, Resume and confirmation-protected Close all. Pause allows risk-reducing orders. Close all cancels only REASON-owned orders and closes inherited long and short paper positions; it never silently cancels manual orders.
+- Records recent REASON fills, worker events, sanitized errors and order uncertainty for copyable diagnostics.
+- Makes no scheduled or automatic paid AI calls. **Ask AI remains disconnected and costs nothing.**
 
-This is a deliberate implementation stage, not a change to the agreed final behavior: the finished worker will automatically execute valid cards. Existing terminal trading remains untouched.
+Live-money endpoints, live credentials, options and crypto are absent. The API cannot submit an order itself; only the worker identity can read the paper secrets and run the execution module.
 
-## Already completed by the owner
+## Deploy from Cloud Shell
 
-Billing linked; core service APIs enabled; default Firestore Native database created in us-central1; `reason-api` service account created with `roles/datastore.user`; Google identity provider and OAuth web client configured. Confirm the provider actually saves the values from Google's own copy buttons if sign-in later reports invalid_client. No OAuth client secret belongs in this repository or Cloud Run browser configuration.
-
-## Deploy after the foundation PR is merged
-
-Cloud Shell must have access to the private GitHub repository. If it doesn't, use `gh auth login --hostname github.com --git-protocol https --web` and complete GitHub's device approval outside chat. Do not paste a token or password here.
+After the PR is merged:
 
 ```bash
-gh repo clone mtripodi31-gif/REASON-pwa
-cd REASON-pwa
-bash deploy/cloud-foundation.sh
+cd ~/REASON-pwa
+git pull --ff-only origin main
+bash deploy/paper-execution.sh
 ```
 
-If the repository is already cloned, use its existing directory and pull the merged branch rather than cloning over it. The script is hardcoded to REASON, not Direct Line.
-
-The script:
-
-1. Enables Firebase Management and Security Rules APIs alongside core services.
-2. Verifies the pre-created database and API identity.
-3. Adds Firebase to the existing Cloud project if needed, registers/reuses `REASON Web`, and reads its web SDK configuration.
-4. Writes `deploy/runtime.env.yaml` locally (ignored by Git, build uploads and Docker). Firebase browser API keys are public configuration, not OAuth client secrets.
-5. Preserves existing authorized domains and adds REASON's domains. Deploys deny-all browser Firestore rules to this dedicated project's default database. Does not disable the server API's IAM access.
-6. Adds Firebase Authentication Viewer permission to the API identity for revocation checks and uses a separate `reason-build` identity with Cloud Run Builder permissions.
-7. Builds/deploys `reason-api` from the root Dockerfile, request-billed, minimum zero, maximum two instances. No VM/trading worker starts.
-8. Adds the returned Cloud Run hostname to the authorized-domain list and checks the public `/healthz` endpoint.
-
-The static app shell, `/health` and Firebase public configuration are public. Every private account route requires the verified owner identity; making the Cloud Run service invokable does not make account data public. The script uses Google's supported `--no-invoker-iam-check` public-service configuration, which does not grant `allUsers` an IAM role and works with domain-restricted sharing. REASON still verifies the owner's Google token on every private API. If an organization explicitly enforces the Cloud Run Invoker IAM check, stop and design an IAP/hosting route rather than changing that organization policy.
-
-The script preserves `REASON_OWNER_UID` and `REASON_ACCOUNT_ID` from an existing local `runtime.env.yaml`. If those values were changed only in the Cloud console, copy those nonsecret settings into that file before rerunning so the deployment does not clear them. Secret bindings should be reviewed on subsequent deployments. Deployment, IAM grants and billing were not performed by the PR itself.
-
-The first deployment has a Cloud Run URL. Sign in there using the owner Google account, then confirm all other accounts are refused. `/api/me` returns the authenticated UID; you can pin it later using REASON_OWNER_UID. We have not yet verified the real Google sign-in flow or cloud permissions from this development environment.
-
-## Connect Alpaca after sign-in is verified
+If the local account binding is missing, first run:
 
 ```bash
 bash deploy/connect-paper.sh
 ```
 
-It asks for the PAPER key and secret using hidden terminal prompts, stores them in dedicated Google Secret Manager secrets, grants the API identity access to those two secrets only, and sets the expected paper account ID. It adds no broker order capability. Do not enter live credentials.
+The execution script asks you to type `STOPPED` after confirming the old Mac REASON process cannot restart. Two programs controlling the same paper account would make order attribution and reconciliation unreliable.
 
-In the app, tap **Refresh paper account**. Confirm the account ID and all imported holdings/orders match Alpaca. Cash can be negative if the pre-existing account has borrowed; the app reports actual state without pretending to resolve it. Buying power is a broker figure, not authorization for REASON to borrow.
+The script builds one versioned image, updates the request-billed Cloud Run API, creates a least-privilege `reason-worker` identity, and creates or updates `reason-worker-1`, an e2-small Container-Optimized OS VM. The worker VM uses an ephemeral external address for outbound Alpaca/Google access and no REASON-created inbound firewall rule. Expected baseline remains roughly $20–30/month before optional paid data or owner-triggered AI.
 
-A snapshot consists of separate broker GETs, not an atomic broker transaction. If equity/cash/buying power changed during retrieval, packet generation stops and asks for another refresh. It still cannot guarantee executable freshness. The future trading worker must reconcile again before order submission.
+## First controlled lifecycle
 
-There is no synthetic order history or benchmark curve on this cloud page. Last snapshot time is visible. Refresh is manual; no paid analysis is invoked by opening the page.
+After deployment, open the PWA and verify **Worker running**. Refresh the account and copy a fresh packet. For the first executable test, use a small paper target in one liquid symbol with a valid stop and take-profit. Paste the JSON and tap **Validate & activate paper card**. Confirm in REASON and Alpaca that exactly one deterministic `reason-...` order exists and that its bracket legs appear. Then test Pause and confirm it blocks new exposure without canceling broker-held exits.
 
-## Custom domain and iPhone
+Do not use buying power as the budget. Validation counts retained long holdings, pending limit buys and targets against equity. Inherited shorts should be transitioned to zero explicitly; REASON does not treat their proceeds as free long-only cash.
 
-`reason.directlinemedical.app` is authorized for authentication but has **not** been routed or deployed by this PR. First verify Google login at the Cloud Run URL. Then configure the PWA's supported custom-domain hosting route and add only the required `reason` DNS record. Do not change the root or www Direct Line records. Firebase Hosting or a supported Cloud Run domain route can be selected at that step; costs and DNS authority need verification.
+## Current boundaries
 
-The cloud shell includes a PWA manifest and service worker. The service worker handles static shell assets only, not API requests or credentials. Browser session persistence is used for Google sign-in. iPhone Add to Home Screen, offline behavior and push notifications are not device-validated; push/email notifications remain unimplemented.
+- IEX is one exchange rather than the consolidated market. REST snapshots are polled; streaming data, completed-bar indicators, RSI/VWAP, news/social sources, benchmark curves and push notifications remain future work.
+- Executable cards are regular-session only. Orders may remain unfilled; target weights are instructions, not guaranteed fills.
+- New/increased positions get bracket exits. Imported holdings remain inherited unless a later card changes them. Release 0.3 never invents exits for imported holdings.
+- Partial/final fills are reconciled from recent broker orders. Advanced cancel/replace and consolidated exit migration for retained imported quantities remain limited and need forward paper testing.
+- Firestore leasing plus deterministic client IDs reduce duplicate risk; they cannot create mathematical exactly-once delivery across a broker boundary.
+- The worker VM is a single point of interruption. Broker-resident bracket legs continue at Alpaca, but unsubmitted conditional entries depend on the worker.
 
-## Remaining before automated paper trading
+## Recovery and diagnostics
 
-Real market data with feed provenance; complete Trade Card execution contract; separated worker and durable order-intent/reconciliation state machine; cash reservations against actual fills; uncertain-order handling and partial fills; worker ownership/fencing and independent heartbeat alert; broker-native protective orders where supported; session/holiday handling; emergency controls; notifications; matched benchmark history. The existing terminal process must stop before the new worker submits orders to the same account.
+If the dashboard says **WORKER STOPPED / STALE**, copy diagnostics and inspect:
 
-Live mode and live credentials remain unsupported in this release. Trading cards cannot move from simulation/paper into live mode. The local simulator remains available through `run-preview.sh`, but is not used by the cloud API.
+```bash
+gcloud compute instances get-serial-port-output reason-worker-1 \
+  --project=reason-512120 \
+  --zone=us-central1-a \
+  --port=1 | tail -n 120
+```
 
-## Tests and CI
+Restart only the worker VM:
+
+```bash
+gcloud compute instances reset reason-worker-1 \
+  --project=reason-512120 \
+  --zone=us-central1-a
+```
+
+An `ORDER UNCERTAIN` error automatically pauses new entries. Check Alpaca using the displayed client order ID before resuming. Never create a replacement manually until the original ID is reconciled.
+
+## Verification
 
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt -r requirements-cloud.txt
 .venv/bin/python -m pytest -q
 .venv/bin/python tests/smoke_http.py
+node --input-type=module --check < cloud-web/cloud.js
+bash -n deploy/cloud-foundation.sh deploy/connect-paper.sh deploy/paper-execution.sh
 ```
 
-The workflow runs unit/API tests, HTTP smoke, JavaScript/shell checks and Docker image build. Local validation: 38 tests passed, smoke and syntax checks passed. Docker build runs in GitHub CI because Docker isn't installed in this local environment. Browser visual and real Google/Firestore/Alpaca integration tests remain pending deployment. No cloud bill or trade was generated by local tests.
-
-## Official technical references
-
-- Firebase ID token verification: https://firebase.google.com/docs/auth/admin/verify-id-tokens
-- Firebase project/app management: https://firebase.google.com/docs/projects/api/workflow_set-up-and-manage-project
-- Security Rules release API: https://firebase.google.com/docs/rules/manage-deploy
-- Cloud Run source build identity: https://docs.cloud.google.com/run/docs/configuring/services/build-service-account
+Local tests use injected identity, storage, market and broker fakes. They never touch Alpaca, Google Cloud or Direct Line. Real paper-order behavior must be verified with the controlled lifecycle after deployment.

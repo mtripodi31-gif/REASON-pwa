@@ -3,7 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 REASON_PROJECT='reason-512120'
 REASON_REGION='us-central1'
-printf 'Deploying REASON read-only foundation to %s. No trading worker or brokerage writes.\n' "$REASON_PROJECT"
+printf 'Deploying the REASON paper API to %s. This command does not start the trading worker.\n' "$REASON_PROJECT"
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com firestore.googleapis.com secretmanager.googleapis.com identitytoolkit.googleapis.com firebase.googleapis.com firebaserules.googleapis.com --project="$REASON_PROJECT"
 # Confirm dedicated project and pre-created database/identity rather than touching Direct Line.
 gcloud firestore databases describe --database='(default)' --project="$REASON_PROJECT" --format='value(locationId)'
@@ -27,4 +27,4 @@ if ! curl --fail --silent --show-error "$REASON_URL/health"; then
   printf '\nThe container deployed, but public HTTP access is not verified. Check Cloud Run IAM and ingress before continuing.\n' >&2
   exit 1
 fi
-printf '\nOpen REASON: %s\nSign in using tripodi@directlinemedical.app. Broker connection is not configured yet.\n' "$REASON_URL"
+printf '\nOpen REASON: %s\nSign in using tripodi@directlinemedical.app. Worker state is shown on the dashboard.\n' "$REASON_URL"
