@@ -117,3 +117,17 @@ def test_uid_pin():
 def test_missing_cloud_configuration_fails_closed(monkeypatch):
     for env in ('GOOGLE_CLOUD_PROJECT','REASON_OWNER_EMAIL','FIREBASE_WEB_API_KEY','FIREBASE_WEB_APP_ID'):monkeypatch.delenv(env,raising=False)
     with pytest.raises(RuntimeError):Settings.env()
+
+
+def test_google_popup_dependencies_allowed_without_opening_private_api(setup):
+    client,_,_=setup
+    response=client.get('/')
+    policy=response.headers['content-security-policy']
+    directives={part.strip().split()[0]:part.strip().split()[1:] for part in policy.split(';') if part.strip()}
+    assert 'https://apis.google.com' in directives['script-src']
+    assert 'https://www.gstatic.com' in directives['script-src']
+    assert 'https://apis.google.com' in directives['connect-src']
+    assert '*' not in directives['script-src']
+    assert "'unsafe-inline'" not in directives['script-src']
+    assert "'unsafe-eval'" not in directives['script-src']
+    assert client.get('/api/status').status_code==401
