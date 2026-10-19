@@ -20,7 +20,7 @@ gcloud projects add-iam-policy-binding "$REASON_PROJECT" --member="serviceAccoun
 gcloud run deploy reason-api --project="$REASON_PROJECT" --region="$REASON_REGION" --source=. \
   --service-account="reason-api@$REASON_PROJECT.iam.gserviceaccount.com" \
   --build-service-account="projects/$REASON_PROJECT/serviceAccounts/reason-build@$REASON_PROJECT.iam.gserviceaccount.com" \
-  --env-vars-file=deploy/runtime.env.yaml --allow-unauthenticated --min-instances=0 --max-instances=2 --memory=512Mi --cpu=1 --timeout=60 --quiet
+  --env-vars-file=deploy/runtime.env.yaml --no-invoker-iam-check --min-instances=0 --max-instances=2 --memory=512Mi --cpu=1 --timeout=60 --quiet
 REASON_URL="$(gcloud run services describe reason-api --project="$REASON_PROJECT" --region="$REASON_REGION" --format='value(status.url)')"
 python3 deploy/configure_firebase.py "$REASON_URL"
 if ! curl --fail --silent --show-error "$REASON_URL/health"; then

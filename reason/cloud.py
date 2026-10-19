@@ -147,7 +147,7 @@ def create_app(settings=None,store=None,verify=None,broker=None):
             log.error('request_failed request_id=%s path=%s',rid,request.url.path)
             return JSONResponse({'detail':'Request failed. Check server logs using the request ID.','request_id':rid},503,headers={'Cache-Control':'no-store'})
         response.headers.update({'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Request-ID':rid,
-            'Content-Security-Policy':"default-src 'self'; script-src 'self' https://www.gstatic.com; style-src 'self'; img-src 'self' data:; connect-src 'self' https://*.googleapis.com https://*.firebaseapp.com https://www.gstatic.com; frame-src https://*.firebaseapp.com https://accounts.google.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"})
+            'Content-Security-Policy':"default-src 'self'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self'; img-src 'self' data:; connect-src 'self' https://apis.google.com https://*.googleapis.com https://*.firebaseapp.com https://www.gstatic.com; frame-src https://*.firebaseapp.com https://accounts.google.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"})
         return response
     def owner(request:Request):
         header=request.headers.get('authorization','')

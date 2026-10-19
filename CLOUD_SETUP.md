@@ -40,7 +40,7 @@ The script:
 7. Builds/deploys `reason-api` from the root Dockerfile, request-billed, minimum zero, maximum two instances. No VM/trading worker starts.
 8. Adds the returned Cloud Run hostname to the authorized-domain list and checks the public `/healthz` endpoint.
 
-The static app shell, `/healthz` and Firebase public configuration are public. Every private account route requires the verified owner identity; making the Cloud Run service invokable does not make account data public. If organizational policy blocks public invocation, stop and design an IAP/hosting route rather than weakening organization policies.
+The static app shell, `/health` and Firebase public configuration are public. Every private account route requires the verified owner identity; making the Cloud Run service invokable does not make account data public. The script uses Google's supported `--no-invoker-iam-check` public-service configuration, which does not grant `allUsers` an IAM role and works with domain-restricted sharing. REASON still verifies the owner's Google token on every private API. If an organization explicitly enforces the Cloud Run Invoker IAM check, stop and design an IAP/hosting route rather than changing that organization policy.
 
 The script preserves `REASON_OWNER_UID` and `REASON_ACCOUNT_ID` from an existing local `runtime.env.yaml`. If those values were changed only in the Cloud console, copy those nonsecret settings into that file before rerunning so the deployment does not clear them. Secret bindings should be reviewed on subsequent deployments. Deployment, IAM grants and billing were not performed by the PR itself.
 
