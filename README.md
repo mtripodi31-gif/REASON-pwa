@@ -2,19 +2,19 @@
 
 Private trading desk for REASON. Owner: `tripodi@directlinemedical.app`. Dedicated Google project: `reason-512120`.
 
-## Cloud foundation 0.2
+## Paper execution 0.3
 
-Google owner sign-in, Firestore state, packet export, draft cards and optional **read-only Alpaca paper account** import. No trading worker or paid AI calls. Trading is visibly disabled; no-change drafts are accepted, while new trade decisions require a later execution/data release.
+Google owner sign-in, Firestore state, IEX-evidence packet export, automatically activated Trade Cards and a persistent **Alpaca PAPER-only** worker. Paid AI remains manual-only and disconnected. New/increased paper positions use deterministic bracket limit orders with broker-resident stop/take exits; pause, resume, close-all, fills, activity and diagnostics are visible in the PWA.
 
 Read [CLOUD_SETUP.md](CLOUD_SETUP.md) for deployment and current limits. After merging and authenticating GitHub CLI in Cloud Shell:
 
 ```bash
 gh repo clone mtripodi31-gif/REASON-pwa
 cd REASON-pwa
-bash deploy/cloud-foundation.sh
+bash deploy/paper-execution.sh
 ```
 
-Deployment is manual. CI tests changes but never deploys or trades. Broker keys belong only in Secret Manager through the optional `deploy/connect-paper.sh` hidden prompts. Do not commit credentials or upload medical data.
+Deployment is manual. CI tests changes but never deploys or trades. Broker keys belong only in Secret Manager through `deploy/connect-paper.sh` hidden prompts. `paper-execution.sh` refuses to start a second controller until the owner confirms the old Mac process is stopped. Do not commit credentials or upload medical data.
 
 ## Local simulation preview 0.1
 
@@ -37,4 +37,4 @@ python3 -m venv .venv
 .venv/bin/python tests/smoke_http.py
 ```
 
-See [BUILD_SPECIFICATION.md](BUILD_SPECIFICATION.md) for the agreed final design and [TEST_REPORT.md](TEST_REPORT.md) for verification scope. The repository contains no live broker integration, secrets or automatic deployment workflow.
+See [BUILD_SPECIFICATION.md](BUILD_SPECIFICATION.md) for the agreed design and [TEST_REPORT.md](TEST_REPORT.md) for verification scope. The repository contains no live-money broker integration, secrets or automatic deployment workflow.
