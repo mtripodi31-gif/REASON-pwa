@@ -20,3 +20,11 @@ These results apply to the local simulator. They do not validate future Alpaca o
 - HTTP smoke and JavaScript/shell syntax checks passed.
 - Tests use injected identity verification, in-memory storage and broker stubs; they do not claim real OAuth, Firestore or broker integration validation. No real cloud services or keys were used.
 - Docker isn't installed locally; the Docker build is included in GitHub CI. Cloud deployment scripts require owner execution in Cloud Shell. They were syntax-checked and official API shapes researched, not executed against the cloud project.
+
+## Paper execution 0.3 — October 19, 2026
+
+- 44 local tests passed, plus HTTP smoke and JavaScript/shell syntax checks.
+- Worker checks cover stable feed-labeled evidence IDs, deterministic bracket identity, duplicate-intent suppression, pause behavior, inherited-short closure, expiry, close-all and protection of external/manual orders.
+- API validation now accounts for evidence IDs, inherited shorts, required exits, pending-buy reservations and cash-only whole-portfolio targets.
+- Submission timeouts are coded as uncertain and pause entries; they are never interpreted as a safe retry. Real timeouts, partial fills, bracket-leg events and VM restart recovery still require controlled Alpaca paper testing.
+- No paper order, cloud resource or paid AI call was created during local verification.
