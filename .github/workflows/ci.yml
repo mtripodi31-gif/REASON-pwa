@@ -1,0 +1,27 @@
+name: CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: pip install -r requirements-dev.txt -r requirements-cloud.txt
+      - run: python -m pytest -q
+      - run: python tests/smoke_http.py
+      - run: |
+          node --check web/app.js
+          node --check web/sw.js
+          node --input-type=module --check < cloud-web/cloud.js
+          node --check cloud-web/sw.js
+          bash -n deploy/cloud-foundation.sh deploy/connect-paper.sh
+      - run: docker build -t reason-cloud:test .

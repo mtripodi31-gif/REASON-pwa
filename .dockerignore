@@ -1,0 +1,11 @@
+.git
+.venv
+**/__pycache__
+.pytest_cache
+data
+.env
+*.sqlite3*
+*.zip
+*.jpeg
+*.png
+deploy/runtime.env.yaml
