@@ -2,6 +2,10 @@
 
 Private trading desk for REASON. Owner: `tripodi@directlinemedical.app`. Dedicated Google project: `reason-512120`.
 
+## Operations visibility 0.4
+
+The owner dashboard now polls authenticated status every 30 seconds while visible, refreshes when reopened, and offers a Check now action. An in-app operational alert panel distinguishes a stale/stopped worker, missing credentials, stale broker snapshot, entry pause, close-all pending, and uncertain broker orders. It shows status age and explicitly marks that push/email delivery is not present. Alerts are derived from the existing authorized status API; this phase does not change order execution, AI billing, or the broker account. No automatic orders or AI calls are triggered by polling.
+
 ## Paper execution 0.3
 
 Google owner sign-in, Firestore state, IEX-evidence packet export, automatically activated Trade Cards and a persistent **Alpaca PAPER-only** worker. Paid AI remains manual-only and disconnected. New/increased paper positions use deterministic bracket limit orders with broker-resident stop/take exits; pause, resume, close-all, fills, activity and diagnostics are visible in the PWA.
