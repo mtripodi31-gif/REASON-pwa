@@ -10,9 +10,20 @@ REASON_IMAGE="$REASON_REGION-docker.pkg.dev/$REASON_PROJECT/$REASON_REPOSITORY/r
 REASON_API="reason-api@$REASON_PROJECT.iam.gserviceaccount.com"
 REASON_WORKER="reason-worker@$REASON_PROJECT.iam.gserviceaccount.com"
 
-if [ ! -f deploy/runtime.env.yaml ] || ! grep -q '^REASON_ACCOUNT_ID:' deploy/runtime.env.yaml; then
-  printf 'Missing deploy/runtime.env.yaml account binding. Run deploy/connect-paper.sh first.\n' >&2
+if [ ! -f deploy/runtime.env.yaml ]; then
+  printf 'Missing deploy/runtime.env.yaml. Run deploy/cloud-foundation.sh first.\n' >&2
   exit 1
+fi
+# Older connect-paper releases set the account ID on Cloud Run without updating
+# the ignored local runtime file. Recover that non-secret binding automatically.
+if ! grep -q '^REASON_ACCOUNT_ID:' deploy/runtime.env.yaml; then
+  REASON_EXISTING="$(gcloud run services describe reason-api --project="$REASON_PROJECT" --region="$REASON_REGION" --format=json 2>/dev/null | jq -r '.spec.template.spec.containers[0].env[]? | select(.name=="REASON_ACCOUNT_ID") | .value' | head -n 1)"
+  if [[ "$REASON_EXISTING" =~ ^[a-fA-F0-9-]{36}$ ]]; then
+    printf 'REASON_ACCOUNT_ID: "%s"\n' "$REASON_EXISTING" >> deploy/runtime.env.yaml
+  else
+    printf 'Missing paper account binding. Run deploy/connect-paper.sh first.\n' >&2
+    exit 1
+  fi
 fi
 REASON_ACCOUNT="$(sed -n 's/^REASON_ACCOUNT_ID:[[:space:]]*"\{0,1\}\([^"[:space:]]*\)"\{0,1\}$/\1/p' deploy/runtime.env.yaml)"
 if [[ ! "$REASON_ACCOUNT" =~ ^[a-fA-F0-9-]{36}$ ]]; then
